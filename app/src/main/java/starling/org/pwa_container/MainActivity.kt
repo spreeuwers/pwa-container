@@ -23,9 +23,7 @@ import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.activity_main.view.*
 import starling.org.pwa_container.JavaScriptInterface.Companion.urls
-import java.io.BufferedInputStream
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
+import java.io.*
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -36,7 +34,7 @@ internal class JavaScriptInterface {
 
     val lastKnownLocation: String
         @android.webkit.JavascriptInterface
-        get() = "latlong: "+  this.instance!!.lastKnownLocation
+        get() = "latlong: " + this.instance!!.lastKnownLocation
 
     constructor(instance: MainActivity) {
         this.instance = instance;
@@ -44,7 +42,7 @@ internal class JavaScriptInterface {
 
 
     @android.webkit.JavascriptInterface
-    fun sayHi(name: String) : String {
+    fun sayHi(name: String): String {
         Log.e("hi ", name)
         return "hi " + name
 
@@ -129,7 +127,7 @@ class MainActivity : AppCompatActivity() {
                 (keyCode == KeyEvent.KEYCODE_ENTER)) {
             mywebview!!.loadUrl("" + urlbox.text);
             //var item = findViewById<>(navigation.selectedItemId)
-            if (menuItem!=null){
+            if (menuItem != null) {
                 menuItem!!.setTitle("" + urlbox.text);
             }
 
@@ -236,7 +234,19 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView, url: String) {
                 Log.d("onPageFinished", url)
+                var oos:ObjectOutputStream? = null
+                try {
+                    val fOut = openFileOutput("resources.bin", Context.MODE_PRIVATE)
+                    var oos = ObjectOutputStream(fOut)
+                    oos.writeObject(resources)
 
+                } catch (e: Exception) {
+                    Log.e("error saving resources : ", "", e)
+                } finally {
+                    if (oos!==null) {
+                        oos!!.close()
+                    }
+                }
                 //val downloadUpdate = true
 //                if (downloadUpdate) {
 //                val snackbar = Snackbar
@@ -327,7 +337,7 @@ class MainActivity : AppCompatActivity() {
                 return location.latitude.toString() + "," + location.longitude
             }
 
-            return ""
+            return "null"
         }
 
     internal val connected: Boolean
