@@ -234,16 +234,16 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView, url: String) {
                 Log.d("onPageFinished", url)
-                var oos:ObjectOutputStream? = null
+                var oos: ObjectOutputStream? = null
                 try {
                     val fOut = openFileOutput("resources.bin", Context.MODE_PRIVATE)
                     var oos = ObjectOutputStream(fOut)
                     oos.writeObject(resources)
-
+                    Log.d("cache","Cache stored!")
                 } catch (e: Exception) {
                     Log.e("error saving resources : ", "", e)
                 } finally {
-                    if (oos!==null) {
+                    if (oos !== null) {
                         oos!!.close()
                     }
                 }
@@ -259,17 +259,18 @@ class MainActivity : AppCompatActivity() {
         webview.loadUrl("https://www.demo.nl")
         mywebview!!.addJavascriptInterface(JavaScriptInterface(this), "webview")
 
-        var ois:ObjectOutputStream? = null
+        var ois: ObjectOutputStream? = null
         try {
             val fIn = openFileInput("resources.bin")
             var ois = ObjectInputStream(fIn)
             val res = ois.readObject()
             resources.putAll(res as Map<out String, WebContent>)
+            Log.d("cache","Cache loaded....!")
 
         } catch (e: Exception) {
             Log.e("error saving resources : ", "", e)
         } finally {
-            if (ois!==null) {
+            if (ois !== null) {
                 ois!!.close()
             }
         }
