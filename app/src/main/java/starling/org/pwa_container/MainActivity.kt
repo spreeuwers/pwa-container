@@ -34,9 +34,9 @@ internal class JavaScriptInterface {
 
     var instance: MainActivity? = null;
 
-//    val lastKnownLocation: String
-//        @android.webkit.JavascriptInterface
-//        get() = this.instance!!.lastKnownLocation
+    val lastKnownLocation: String
+        @android.webkit.JavascriptInterface
+        get() = "latlong: "+  this.instance!!.lastKnownLocation
 
     constructor(instance: MainActivity) {
         this.instance = instance;
@@ -44,8 +44,9 @@ internal class JavaScriptInterface {
 
 
     @android.webkit.JavascriptInterface
-    fun sayHi(name: String) {
+    fun sayHi(name: String) : String {
         Log.e("hi ", name)
+        return "hi " + name
 
     }
 
@@ -92,6 +93,10 @@ class MainActivity : AppCompatActivity() {
                 "window.setTimeout(()=>window.location.reload(),5000);" +
                 "</script>" +
                 "</html>";
+        val DEMO_HTML = "<html><body><h1>DEMO ....</h1></body>" +
+                "<a href=\"javascript:alert(webview.getLastKnownLocation())\">location</a><br>" +
+                "<a href=\"javascript:alert(webview.sayHi('eddy'))\">say hi</a>" +
+                "</html>";
     }
 
 
@@ -124,7 +129,10 @@ class MainActivity : AppCompatActivity() {
                 (keyCode == KeyEvent.KEYCODE_ENTER)) {
             mywebview!!.loadUrl("" + urlbox.text);
             //var item = findViewById<>(navigation.selectedItemId)
-            menuItem!!.setTitle("" + urlbox.text);
+            if (menuItem!=null){
+                menuItem!!.setTitle("" + urlbox.text);
+            }
+
             // Perform action on key press
             Toast.makeText(this@MainActivity, urlbox.getText(), Toast.LENGTH_SHORT).show();
             true;
@@ -159,18 +167,27 @@ class MainActivity : AppCompatActivity() {
         webSettings!!.cacheMode = WebSettings.LOAD_NO_CACHE
         webSettings!!.setAppCacheEnabled(false)
 
+        resources.put("https://www.demo.nl", WebContent("text/html", DEMO_HTML.toByteArray()))
+        urlbox.setText("https://www.demo.nl")
+
         Log.d("VERSION:", softwareVersion + " " + appLabel)
 
         mLocationManager = this.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
-        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-
-            ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCESS_FINE_LOCATION),
-                    LOCATION_REQUEST_CODE)
-        }
 
 
-        //Log.d("VERSION:", softwareVersion + " " + appLabel)
+        mywebview!!.setWebChromeClient(object : WebChromeClient() {
+            override fun onJsAlert(view: WebView, url: String, message: String, result: JsResult): Boolean {
+                return super.onJsAlert(view, url, message, result)
+            }
+
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                Log.e("jslog", consoleMessage.message())
+                return super.onConsoleMessage(consoleMessage)
+            }
+
+        })
+
 
 
         mywebview!!.setWebViewClient(object : WebViewClient() {
@@ -185,7 +202,7 @@ class MainActivity : AppCompatActivity() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse {
                 //mywebview.clearCache(true);
                 val requestURL = request.url.toString()
-                val offLinePage = LOADING_HTML;
+                val offLinePage = DEMO_HTML;//LOADING_HTML;
                 var webResResp: WebResourceResponse? = null;
                 Log.d("request", requestURL)
 
@@ -229,6 +246,8 @@ class MainActivity : AppCompatActivity() {
                 //}
             }
         })
+        webview.loadUrl("https://www.demo.nl")
+        mywebview!!.addJavascriptInterface(JavaScriptInterface(this), "webview")
     }
 
     internal fun getWebContent(requestURL: String): WebContent? {
@@ -295,6 +314,12 @@ class MainActivity : AppCompatActivity() {
     val lastKnownLocation: String
         get() {
 
+
+            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+                ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCESS_FINE_LOCATION),
+                        LOCATION_REQUEST_CODE)
+            }
             val location = this.mLocationManager!!.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 
             if (location != null) {
