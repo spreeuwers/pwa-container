@@ -258,6 +258,21 @@ class MainActivity : AppCompatActivity() {
         })
         webview.loadUrl("https://www.demo.nl")
         mywebview!!.addJavascriptInterface(JavaScriptInterface(this), "webview")
+
+        var ois:ObjectOutputStream? = null
+        try {
+            val fIn = openFileInput("resources.bin")
+            var ois = ObjectInputStream(fIn)
+            val res = ois.readObject()
+            resources.putAll(res as Map<out String, WebContent>)
+
+        } catch (e: Exception) {
+            Log.e("error saving resources : ", "", e)
+        } finally {
+            if (ois!==null) {
+                ois!!.close()
+            }
+        }
     }
 
     internal fun getWebContent(requestURL: String): WebContent? {
