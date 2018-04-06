@@ -26,6 +26,7 @@ import starling.org.pwa_container.JavaScriptInterface.Companion.urls
 import java.io.*
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.*
 
 
 internal class JavaScriptInterface {
@@ -70,7 +71,7 @@ internal class JavaScriptInterface {
     }
 }
 
-internal class WebContent(var contentType: String, var content: ByteArray)
+internal class WebContent(var contentType: String, var content: ByteArray): Serializable
 
 class MainActivity : AppCompatActivity() {
 
@@ -238,7 +239,7 @@ class MainActivity : AppCompatActivity() {
                 try {
                     val fOut = openFileOutput("resources.bin", Context.MODE_PRIVATE)
                     var oos = ObjectOutputStream(fOut)
-                    oos.writeObject(resources)
+                    //oos.writeObject(resources)
                     Log.d("cache","Cache stored!")
                 } catch (e: Exception) {
                     Log.e("error saving resources : ", "", e)
@@ -246,14 +247,15 @@ class MainActivity : AppCompatActivity() {
                     if (oos !== null) {
                         oos!!.close()
                     }
+                    Log.d("cache urls: ", Arrays.toString(resources.keys.toTypedArray()))
                 }
-                //val downloadUpdate = true
-//                if (downloadUpdate) {
-//                val snackbar = Snackbar
-//                        .make(frameLayout!!, "Website has been updated", Snackbar.LENGTH_LONG)
-//
-//                snackbar.show()
-                //}
+                val downloadUpdate = true
+                if (downloadUpdate) {
+                val snackbar = Snackbar
+                        .make(frameLayout!!, "Website has been updated", Snackbar.LENGTH_LONG)
+
+                snackbar.show()
+                }
             }
         })
         webview.loadUrl("https://www.demo.nl")
@@ -264,7 +266,7 @@ class MainActivity : AppCompatActivity() {
             val fIn = openFileInput("resources.bin")
             var ois = ObjectInputStream(fIn)
             val res = ois.readObject()
-            resources.putAll(res as Map<out String, WebContent>)
+            //resources.putAll(res as Map<out String, WebContent>)
             Log.d("cache","Cache loaded....!")
 
         } catch (e: Exception) {
@@ -319,7 +321,7 @@ class MainActivity : AppCompatActivity() {
             buffer.flush()
             val byteArray = buffer.toByteArray()
             webContent = WebContent(contentType, byteArray);
-            resources.put(requestURL, webContent)
+            //resources.put(requestURL, webContent)
             Log.d("store: ", requestURL)
             Log.d("NEW", requestURL)
             //MainActivity.instance.mywebview.clearCache(true);
