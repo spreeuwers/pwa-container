@@ -117,6 +117,7 @@ class MainActivity : AppCompatActivity() {
         menuItem = item;
         Log.d("loadUrl", "" + urlbox.text);
         mywebview!!.loadUrl("" + urlbox.text);
+        Util.scheduleJob( baseContext);
         Toast.makeText(this@MainActivity, urlbox.getText(), Toast.LENGTH_SHORT).show();
         return@OnNavigationItemSelectedListener result;
     }
@@ -235,6 +236,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView, url: String) {
                 Log.d("onPageFinished", url)
+
                 var oos: ObjectOutputStream? = null
                 try {
                     val fOut = openFileOutput("resources.bin", Context.MODE_PRIVATE)
@@ -250,12 +252,14 @@ class MainActivity : AppCompatActivity() {
                     Log.d("cache urls: ", Arrays.toString(resources.keys.toTypedArray()))
                 }
                 val downloadUpdate = true
+
                 if (downloadUpdate) {
                 val snackbar = Snackbar
                         .make(frameLayout!!, "Website has been updated", Snackbar.LENGTH_LONG)
 
                 snackbar.show()
                 }
+
             }
         })
         webview.loadUrl("https://www.demo.nl")
