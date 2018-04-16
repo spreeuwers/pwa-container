@@ -307,7 +307,7 @@ class MainActivity : AppCompatActivity() {
         //final String requestURL = url.toString();
         var key = requestURL.replace(Regex("/$"), "")
         var wc = resources[requestURL]
-        if (wc != null){
+        if (wc == null){
             wc = resources[key]
         }
         if (wc != null || visitedUrls.contains(requestURL)) {
