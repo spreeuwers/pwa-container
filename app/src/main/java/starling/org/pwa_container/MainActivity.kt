@@ -71,7 +71,7 @@ internal class JavaScriptInterface {
     }
 }
 
-internal class WebContent(var contentType: String, var content: ByteArray): Serializable
+internal class WebContent(var contentType: String, var content: ByteArray) : Serializable
 
 class MainActivity : AppCompatActivity() {
 
@@ -117,7 +117,7 @@ class MainActivity : AppCompatActivity() {
         menuItem = item;
         Log.d("loadUrl", "" + urlbox.text);
         mywebview!!.loadUrl("" + urlbox.text);
-        Util.scheduleJob( baseContext);
+        Util.scheduleJob(baseContext);
         Toast.makeText(this@MainActivity, urlbox.getText(), Toast.LENGTH_SHORT).show();
         return@OnNavigationItemSelectedListener result;
     }
@@ -151,14 +151,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         frameLayout = findViewById(R.id.frame) as FrameLayout
         mywebview = findViewById(R.id.webview) as WebView;
-        //navigation.selectedItemId
-//    urlbox.setOnClickListener(View.OnClickListener {
-//        Log.d("", "" + urlbox.text);
-//        mywebview!!.loadUrl("" + urlbox.text);
-//        //var item = findViewById<>(navigation.selectedItemId)
-//        menuItem!!.setTitle("" + urlbox.text);
-//        //navigation.()navigation.selectedItemId
-//    });
+
         urlbox.setOnKeyListener(myKeyListener);
         urlbox.clearFocus()
         webSettings = mywebview!!.settings
@@ -169,6 +162,25 @@ class MainActivity : AppCompatActivity() {
 
         resources.put("https://www.demo.nl", WebContent("text/html", DEMO_HTML.toByteArray()))
         urlbox.setText("https://www.demo.nl")
+        getResources().openRawResource(R.raw.app);
+
+        //add a resource html file
+        try {
+            var inputStream = getResources().openRawResource(R.raw.app);
+            var bufferedReader = BufferedReader(InputStreamReader(inputStream));
+            var stringBuilder = StringBuilder();
+            var line = bufferedReader.readLine();
+            while (line != null) {
+                stringBuilder.append(line).append("\n");
+                line = bufferedReader.readLine();
+
+            }
+            resources.put("https://www.app.nl", WebContent("text/html", stringBuilder.toString().toByteArray()))
+            //resources.put("https://www.app.nl", WebContent("text/html", stringBuilder.toString().toByteArray()))
+            //mywebview!!.loadDataWithBaseURL(null, stringBuilder.toString(), "text/html", "UTF-8", null);
+        } catch (e: IOException) {
+            e.printStackTrace();
+        }
 
         Log.d("VERSION:", softwareVersion + " " + appLabel)
 
@@ -241,23 +253,31 @@ class MainActivity : AppCompatActivity() {
                 try {
                     val fOut = openFileOutput("resources.bin", Context.MODE_PRIVATE)
                     var oos = ObjectOutputStream(fOut)
-                    //oos.writeObject(resources)
-                    Log.d("cache","Cache stored!")
+                    oos.writeObject(resources)
+                    Log.d("cache", "Cache stored!")
                 } catch (e: Exception) {
                     Log.e("error saving resources : ", "", e)
                 } finally {
                     if (oos !== null) {
                         oos!!.close()
                     }
-                    Log.d("cache urls: ", Arrays.toString(resources.keys.toTypedArray()))
+                    Log.d("cache urls: \n", Arrays.toString(resources.keys.toTypedArray()).replace(", ","\n"))
+                    var html = ""
+                    var key = url.replace(Regex("/$"), "")
+                    if( resources[key] != null){
+                        html = String(resources[key]!!.content)
+
+                    }
+
+                    Log.d("loaded html: ", url + ": " + html)
                 }
                 val downloadUpdate = true
 
                 if (downloadUpdate) {
-                val snackbar = Snackbar
-                        .make(frameLayout!!, "Website has been updated", Snackbar.LENGTH_LONG)
+                    val snackbar = Snackbar
+                            .make(frameLayout!!, "Website has been updated", Snackbar.LENGTH_LONG)
 
-                snackbar.show()
+                    snackbar.show()
                 }
 
             }
@@ -270,11 +290,11 @@ class MainActivity : AppCompatActivity() {
             val fIn = openFileInput("resources.bin")
             var ois = ObjectInputStream(fIn)
             val res = ois.readObject()
-            //resources.putAll(res as Map<out String, WebContent>)
-            Log.d("cache","Cache loaded....!")
+            resources.putAll(res as Map<out String, WebContent>)
+            Log.d("cache", "Cache loaded....!")
 
         } catch (e: Exception) {
-            Log.e("error saving resources : ", "", e)
+            Log.e("error loading resources : ", "", e)
         } finally {
             if (ois !== null) {
                 ois!!.close()
@@ -285,21 +305,26 @@ class MainActivity : AppCompatActivity() {
     internal fun getWebContent(requestURL: String): WebContent? {
 
         //final String requestURL = url.toString();
-
-        val wc = resources[requestURL]
-
+        var key = requestURL.replace(Regex("/$"), "")
+        var wc = resources[requestURL]
+        if (wc != null){
+            wc = resources[key]
+        }
         if (wc != null || visitedUrls.contains(requestURL)) {
             Log.d("cached: ", requestURL)
             return wc
         }
         Log.d("request", requestURL)
-        visitedUrls.add(requestURL);
+        if (requestURL.indexOf("?") < 0){
+            visitedUrls.add(requestURL);
+        }
+
 
         Thread(Runnable {
             Log.d("thread for: ", requestURL)
             getUrlContent(requestURL)
         }).start()
-        return resources[requestURL]
+        return wc
     }
 
     private fun getUrlContent(requestURL: String): WebContent? {
@@ -325,15 +350,18 @@ class MainActivity : AppCompatActivity() {
             buffer.flush()
             val byteArray = buffer.toByteArray()
             webContent = WebContent(contentType, byteArray);
-            //resources.put(requestURL, webContent)
-            Log.d("store: ", requestURL)
-            Log.d("NEW", requestURL)
+            if (requestURL.indexOf("?") < 0){
+                resources.put(requestURL, webContent)
+                Log.d("store: ", requestURL)
+                Log.d("NEW", requestURL)
+            }
+
             //MainActivity.instance.mywebview.clearCache(true);
 
 
         } catch (e: Exception) {
-            Log.e("error reading:", requestURL, e)
-            Log.e("error:", e.message)
+            Log.e("error reading:", requestURL + " " + e.message)
+            //Log.e("error:",
             visitedUrls.remove(requestURL);
         } finally {
             if (urlConnection != null) {
