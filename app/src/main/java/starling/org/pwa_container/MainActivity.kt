@@ -17,12 +17,9 @@ import android.view.MenuItem
 import android.view.View
 import android.view.WindowManager
 import android.webkit.*
-import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.android.synthetic.main.activity_main.view.*
-import starling.org.pwa_container.JavaScriptInterface.Companion.urls
 import java.io.*
 import java.net.HttpURLConnection
 import java.net.URL
@@ -92,7 +89,7 @@ class MainActivity : AppCompatActivity() {
                 "window.setTimeout(()=>window.location.reload(),5000);" +
                 "</script>" +
                 "</html>";
-        val DEMO_HTML = "<html><body><h1>DEMO ....</h1></body>" +
+        val DEMO_HTML = "<html><body><h1>APP 1</h1></body>" +
                 "<a href=\"javascript:alert(webview.getLastKnownLocation())\">location</a><br>" +
                 "<a href=\"javascript:alert(webview.sayHi('eddy'))\">say hi</a>" +
                 "</html>";
@@ -162,24 +159,31 @@ class MainActivity : AppCompatActivity() {
 
         resources.put("https://www.demo.nl", WebContent("text/html", DEMO_HTML.toByteArray()))
         urlbox.setText("https://www.demo.nl")
-        getResources().openRawResource(R.raw.app);
+        getResources().openRawResource(R.raw.app1);
 
-        //add a resource html file
-        try {
-            var inputStream = getResources().openRawResource(R.raw.app);
-            var bufferedReader = BufferedReader(InputStreamReader(inputStream));
-            var stringBuilder = StringBuilder();
-            var line = bufferedReader.readLine();
-            while (line != null) {
-                stringBuilder.append(line).append("\n");
-                line = bufferedReader.readLine();
+        //add a resource html files
+        val appIds = intArrayOf(R.raw.app1, R.raw.app2, R.raw.app3)
+        var count = 1;
+        for (appId in appIds) {
+            try {
+                var inputStream = getResources().openRawResource(appId);
+                var bufferedReader = BufferedReader(InputStreamReader(inputStream));
+                var stringBuilder = StringBuilder();
+                var line = bufferedReader.readLine();
+                while (line != null) {
+                    stringBuilder.append(line).append("\n");
+                    line = bufferedReader.readLine();
 
+                }
+
+                resources.put("https://www.app" + count + ".nl", WebContent("text/html", stringBuilder.toString().toByteArray()))
+                //resources.put("https://www.app.nl", WebContent("text/html", stringBuilder.toString().toByteArray()))
+                //mywebview!!.loadDataWithBaseURL(null, stringBuilder.toString(), "text/html", "UTF-8", null);
+                count++;
+            } catch (e: IOException) {
+                e.printStackTrace();
             }
-            resources.put("https://www.app.nl", WebContent("text/html", stringBuilder.toString().toByteArray()))
-            //resources.put("https://www.app.nl", WebContent("text/html", stringBuilder.toString().toByteArray()))
-            //mywebview!!.loadDataWithBaseURL(null, stringBuilder.toString(), "text/html", "UTF-8", null);
-        } catch (e: IOException) {
-            e.printStackTrace();
+
         }
 
         Log.d("VERSION:", softwareVersion + " " + appLabel)

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>polymer 3 use html as template</title>
+
+    </head>
+    <body>
+        <script type="module">
+
+            import {Element as PolymerElement} from 'https://cdn.rawgit.com/Polymer/polymer/3.0-preview/polymer-element.js';
+
+            export class MyApp extends PolymerElement {
+
+                // Define a string template instead of a `<template>` element.
+                static get template() {
+                   return '<h2>ELEMENT</h2>';
+                }
+
+                constructor() {
+                    super();
+                    this.name = '3.0 preview';
+                }
+            }
+            customElements.define('my-app', MyApp);
+
+        </script>
+        <h1>APP 2</h1>
+        <my-app></my-app>
+    </body>
+
+</html>
