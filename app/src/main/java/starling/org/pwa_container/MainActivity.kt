@@ -159,32 +159,11 @@ class MainActivity : AppCompatActivity() {
 
         resources.put("https://www.demo.nl", WebContent("text/html", DEMO_HTML.toByteArray()))
         urlbox.setText("https://www.demo.nl")
-        getResources().openRawResource(R.raw.app1);
 
-        //add a resource html files
-        val appIds = intArrayOf(R.raw.app1, R.raw.app2, R.raw.app3)
-        var count = 1;
-        for (appId in appIds) {
-            try {
-                var inputStream = getResources().openRawResource(appId);
-                var bufferedReader = BufferedReader(InputStreamReader(inputStream));
-                var stringBuilder = StringBuilder();
-                var line = bufferedReader.readLine();
-                while (line != null) {
-                    stringBuilder.append(line).append("\n");
-                    line = bufferedReader.readLine();
 
-                }
+        loadCachedResources()
 
-                resources.put("https://www.app" + count + ".nl", WebContent("text/html", stringBuilder.toString().toByteArray()))
-                //resources.put("https://www.app.nl", WebContent("text/html", stringBuilder.toString().toByteArray()))
-                //mywebview!!.loadDataWithBaseURL(null, stringBuilder.toString(), "text/html", "UTF-8", null);
-                count++;
-            } catch (e: IOException) {
-                e.printStackTrace();
-            }
-
-        }
+        fillCacheDefaults()
 
         Log.d("VERSION:", softwareVersion + " " + appLabel)
 
@@ -289,6 +268,38 @@ class MainActivity : AppCompatActivity() {
         webview.loadUrl("https://www.demo.nl")
         mywebview!!.addJavascriptInterface(JavaScriptInterface(this), "webview")
 
+
+    }
+
+    private fun fillCacheDefaults() {
+        //add a resource html files
+        val appIds = intArrayOf(R.raw.app1, R.raw.app2, R.raw.app3)
+        var count = 1;
+        for (appId in appIds) {
+            try {
+                var inputStream = getResources().openRawResource(appId);
+                var bufferedReader = BufferedReader(InputStreamReader(inputStream));
+                var stringBuilder = StringBuilder();
+                var line = bufferedReader.readLine();
+                while (line != null) {
+                    stringBuilder.append(line).append("\n");
+                    line = bufferedReader.readLine();
+
+                }
+                var appUrl = "https://www.app" + count + ".nl"
+                Log.d("fill cache; ", appUrl)
+                resources.put(appUrl, WebContent("text/html", stringBuilder.toString().toByteArray()))
+                //resources.put("https://www.app.nl", WebContent("text/html", stringBuilder.toString().toByteArray()))
+                //mywebview!!.loadDataWithBaseURL(null, stringBuilder.toString(), "text/html", "UTF-8", null);
+                count++;
+            } catch (e: IOException) {
+                e.printStackTrace();
+            }
+
+        }
+    }
+
+    private fun loadCachedResources() {
         var ois: ObjectOutputStream? = null
         try {
             val fIn = openFileInput("resources.bin")
