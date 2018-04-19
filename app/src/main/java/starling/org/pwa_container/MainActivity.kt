@@ -113,8 +113,17 @@ class MainActivity : AppCompatActivity() {
         urlbox.setText(item.title)
         menuItem = item;
         Log.d("loadUrl", "" + urlbox.text);
-        mywebview!!.loadUrl("" + urlbox.text);
-        Util.scheduleJob(baseContext);
+        if (urlbox.text.startsWith("http")) {
+            mywebview!!.loadUrl("" + urlbox.text);
+        } else {
+            var wc = getWebContent("" + urlbox.text);
+            if (wc!=null) {
+                mywebview!!.loadDataWithBaseURL(null, String(wc!!.content), "text/html", "UTF-8", null);
+            }
+        }
+
+
+        //Util.scheduleJob(baseContext);
         Toast.makeText(this@MainActivity, urlbox.getText(), Toast.LENGTH_SHORT).show();
         return@OnNavigationItemSelectedListener result;
     }
@@ -244,10 +253,10 @@ class MainActivity : AppCompatActivity() {
                     if (oos !== null) {
                         oos!!.close()
                     }
-                    Log.d("cache urls: \n", Arrays.toString(resources.keys.toTypedArray()).replace(", ","\n"))
+                    Log.d("cache urls: \n", Arrays.toString(resources.keys.toTypedArray()).replace(", ", "\n"))
                     var html = ""
                     var key = url.replace(Regex("/$"), "")
-                    if( resources[key] != null){
+                    if (resources[key] != null) {
                         html = String(resources[key]!!.content)
 
                     }
@@ -286,7 +295,7 @@ class MainActivity : AppCompatActivity() {
                     line = bufferedReader.readLine();
 
                 }
-                var appUrl = "https://www.app" + count + ".nl"
+                var appUrl = "local.app" + count + ".nl"
                 Log.d("fill cache; ", appUrl)
                 resources.put(appUrl, WebContent("text/html", stringBuilder.toString().toByteArray()))
                 //resources.put("https://www.app.nl", WebContent("text/html", stringBuilder.toString().toByteArray()))
@@ -322,7 +331,7 @@ class MainActivity : AppCompatActivity() {
         //final String requestURL = url.toString();
         var key = requestURL.replace(Regex("/$"), "")
         var wc = resources[requestURL]
-        if (wc == null){
+        if (wc == null) {
             wc = resources[key]
         }
         if (wc != null || visitedUrls.contains(requestURL)) {
@@ -330,15 +339,16 @@ class MainActivity : AppCompatActivity() {
             return wc
         }
         Log.d("request", requestURL)
-        if (requestURL.indexOf("?") < 0){
+        if (requestURL.indexOf("?") < 0) {
             visitedUrls.add(requestURL);
         }
 
-
-        Thread(Runnable {
-            Log.d("thread for: ", requestURL)
-            getUrlContent(requestURL)
-        }).start()
+        if (requestURL.startsWith("http")) {
+            Thread(Runnable {
+                Log.d("thread for: ", requestURL)
+                getUrlContent(requestURL)
+            }).start()
+        }
         return wc
     }
 
@@ -346,6 +356,10 @@ class MainActivity : AppCompatActivity() {
         var contentType: String = ""
         var urlConnection: HttpURLConnection? = null
         var webContent: WebContent? = null;
+
+        if (requestURL.endsWith("/favicon.ico")){
+            return null;
+        }
         try {
             var url = URL(requestURL)
             urlConnection = url.openConnection() as HttpURLConnection
@@ -365,7 +379,7 @@ class MainActivity : AppCompatActivity() {
             buffer.flush()
             val byteArray = buffer.toByteArray()
             webContent = WebContent(contentType, byteArray);
-            if (requestURL.indexOf("?") < 0){
+            if (requestURL.indexOf("?") < 0) {
                 resources.put(requestURL, webContent)
                 Log.d("store: ", requestURL)
                 Log.d("NEW", requestURL)
