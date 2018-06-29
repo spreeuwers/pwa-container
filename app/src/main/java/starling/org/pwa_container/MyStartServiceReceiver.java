@@ -9,6 +9,6 @@ public class MyStartServiceReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        //Util.scheduleJob(context);
+        Util.scheduleJob(context);
     }
 }

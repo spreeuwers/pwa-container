@@ -3,83 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <title>polymer 3 use html as  template</title>
+    <script>
+         console.log("doing script app3");
+    </script>
 </head>
 <body>
 <h1>APP 3</h1>
-<!-- Example of polymer 3.0 component based in
-https://www.polymer-project.org/blog/2017-08-23-hands-on-30-preview.html
+<script>
 
-say thanks to rawgit.com for make easy use modules without instaling any thing 8)
---->
-
-<!-- this is the script template where you can have your html separated from js-->
-<script type="template" id="my-app-template.html">
-    <div>This is my [[name]] app.</div>
-    <hr>
-    <div> Employee list: </div>
-    <ul>
-        <template is="dom-repeat" items="{{employees}}">
-            <li>
-                <div>First name: <span>{{item.first}}</span></div>
-                <div>Last name: <span>{{item.last}}</span></div>
-            </li>
-        </template>
-    </ul>
-    <hr>
-    <template is="dom-if" if="[[itsHidden]]">
-        this content must be show
-    </template>
-    <template is="dom-if" if="[[!itsHidden]]">
-        this content must be  hidden
-    </template>
-</script>
-
-
-<script type ="module">
-
-  import {Element as PolymerElement}
-    from 'https://cdn.rawgit.com/Polymer/polymer/3.0-preview/polymer-element.js';
-    import {DomRepeat} from 'https://cdn.rawgit.com/Polymer/polymer/3.0-preview/lib/elements/dom-repeat.js';
-    import {DomIf as DomIf} from 'https://cdn.rawgit.com/Polymer/polymer/3.0-preview/lib/elements/dom-if.js';
+console.log("doing script app3");
 
 // Added "export" to export the MyApp symbol from the module
-export class MyApp extends PolymerElement {
 
-  // Define a string template instead of a `<template>` element.
-  static get template() {
-    var content = document.getElementById('my-app-template.html').innerHTML;
-    return content;
+class MyApp extends HTMLElement {
+
+  static get observedAttributes() { return ["country"]; }
+
+  attributeChangedCallback(name, oldValue, newValue) {
+    // name will always be "country" due to observedAttributes
+    this._countryCode = newValue;
+    this._updateRendering();
+  }
+  connectedCallback() {
+    this._updateRendering();
   }
 
-  constructor() {
-    super();
-    this.name = '3.0 preview';
+  get country() {
+    return this._countryCode;
+  }
+  set country(v) {
+    this.setAttribute("country", v);
   }
 
-  // properties, observers, etc. are identical to 2.x
-  static get properties() {
-            return {
-          employees: {
-            type: Array,
-            value() {
-              return [
-              {'first': 'Guzman', 'last': 'Paniagua'},
-            {'first': 'Tom', 'last': 'Baker'},
-            {'first': 'Peter', 'last': 'Parker'},
-            {'first': 'Bruce', 'last': 'Wayne'}
-              ];
-            }
-          },
-                  name: {
-      Type: String
-    },
-        itsHidden: {
-          value: true,
-          Type: Boolean
-        }
-        }
-
+  _updateRendering() {
+    this.innerHTML="Hello world!";
   }
+
 }
 
 customElements.define('my-app', MyApp);

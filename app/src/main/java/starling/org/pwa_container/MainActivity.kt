@@ -20,53 +20,14 @@ import android.webkit.*
 import android.widget.FrameLayout
 import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_main.*
+import starling.org.pwa_container.JavaScriptInterface.Companion.cacheDirty
 import java.io.*
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 
-
-internal class JavaScriptInterface {
-
-    var instance: MainActivity? = null;
-
-    val lastKnownLocation: String
-        @android.webkit.JavascriptInterface
-        get() = "latlong: " + this.instance!!.lastKnownLocation
-
-    constructor(instance: MainActivity) {
-        this.instance = instance;
-    }
-
-
-    @android.webkit.JavascriptInterface
-    fun sayHi(name: String): String {
-        Log.e("hi ", name)
-        return "hi " + name
-
-    }
-
-    @android.webkit.JavascriptInterface
-    fun execute(command: String, param: String?) {
-        Log.e("command ", command)
-        Log.e("param ", param)
-        var url = urls[command]
-        if (param != null) {
-            url = url + "?" + param
-        }
-
-        //this.instance!!.nav2Url(url)
-    }
-
-    companion object {
-
-        var urls: MutableMap<String, String> = HashMap()
-        var versionsURLs: MutableMap<String, String> = HashMap()
-        var versions: MutableMap<String, String> = HashMap()
-
-        var updated: MutableSet<String> = HashSet()
-    }
-}
 
 internal class WebContent(var contentType: String, var content: ByteArray) : Serializable
 
@@ -80,6 +41,7 @@ class MainActivity : AppCompatActivity() {
     private val resources = HashMap<String, WebContent>()
     private val visitedUrls = HashSet<String>()
     private var mLocationManager: LocationManager? = null
+    private val httpd = AndroidWebServer("localhost", 8080);
 
 
     companion object {
@@ -117,7 +79,7 @@ class MainActivity : AppCompatActivity() {
             mywebview!!.loadUrl("" + urlbox.text);
         } else {
             var wc = getWebContent("" + urlbox.text);
-            if (wc!=null) {
+            if (wc != null) {
                 mywebview!!.loadDataWithBaseURL(null, String(wc!!.content), "text/html", "UTF-8", null);
             }
         }
@@ -208,33 +170,66 @@ class MainActivity : AppCompatActivity() {
                 val requestURL = request.url.toString()
                 val offLinePage = DEMO_HTML;//LOADING_HTML;
                 var webResResp: WebResourceResponse? = null;
+                var bytes = ByteArray(0)
                 Log.d("request", requestURL)
-
+                var data = ByteArrayInputStream(bytes)
+                var mimetype = "text/html";
                 var webContent = getWebContent(requestURL);
+                var loadedUrl  = request.url.toString()
                 Log.d("retrieve: ", requestURL)
                 if (webContent != null) {
                     Log.d("retrieved from cache: ", requestURL)
-                    val data = ByteArrayInputStream(webContent.content)
-                    webResResp = WebResourceResponse(webContent.contentType, "UTF-8", data)
+                    data = ByteArrayInputStream(webContent.content)
+                    mimetype = webContent.contentType;
+
                 } else {
                     Log.d("connecting to : ", request.url.toString())
                     webContent = getUrlContent(requestURL)
                     if (webContent != null) {
                         Log.d("downloaded: ", requestURL)
-                        val data = ByteArrayInputStream(webContent.content)
-                        webResResp = WebResourceResponse(webContent.contentType, "UTF-8", data)
+                        data = ByteArrayInputStream(webContent.content)
+                        //webResResp = WebResourceResponse(webContent.contentType, "UTF-8", data)
                     }
-
+                    //fallback
                     if (webResResp == null) {
-                        var mimetype = request.requestHeaders["Accept"];
-                        mimetype = mimetype!!.split(",")[0];
+                        val acceptHeader = request.requestHeaders["Accept"];
+                        mimetype = acceptHeader!!.split(",")[0];
                         Log.e("offline page for location", request.url.toString())
-                        val data = ByteArrayInputStream(offLinePage.toByteArray())
-                        webResResp = WebResourceResponse(mimetype, "UTF-8", data)
+                        data = ByteArrayInputStream(offLinePage.toByteArray())
+
                     }
                 }
 
-                Log.d("returning response for: ", request.url.toString())
+                if (mimetype.equals("application/zip")) {
+                    var zis = ZipInputStream(data);
+
+                    // we now iterate through all files in the archive testing them
+                    // again the predicate filter that we passed in. Only items that
+                    // match the filter are expanded.
+                    var entry = zis.nextEntry;
+                    while (entry  != null) {
+                        val name = entry.getName()
+                        Log.d(" file:  ", entry.getName());
+                        if (name.endsWith(".html")){
+                            loadedUrl = name;
+                            val buffer = ByteArray(2048)
+
+                            // now copy out of the zip archive until all bytes are copied
+
+                            var output = ByteArrayOutputStream();
+                            var len = zis.read(buffer)
+                            while (len > 0) {
+                                output.write(buffer, 0, len)
+                                len = zis.read(buffer)
+                            }
+                            val data = ByteArrayInputStream(output.toByteArray())
+                            mimetype = "text/html"
+                        }
+                        entry = zis.nextEntry;
+                    }
+                }
+                webResResp = WebResourceResponse(mimetype, "UTF-8", data)
+                Log.d("returning response for: ", loadedUrl)
                 return webResResp;
             }
 
@@ -263,8 +258,8 @@ class MainActivity : AppCompatActivity() {
 
                     Log.d("loaded html: ", url + ": " + html)
                 }
-                val downloadUpdate = true
-
+                val downloadUpdate = cacheDirty;
+                cacheDirty = false;
                 if (downloadUpdate) {
                     val snackbar = Snackbar
                             .make(frameLayout!!, "Website has been updated", Snackbar.LENGTH_LONG)
@@ -277,7 +272,12 @@ class MainActivity : AppCompatActivity() {
         webview.loadUrl("https://www.demo.nl")
         mywebview!!.addJavascriptInterface(JavaScriptInterface(this), "webview")
 
+        httpd.start();
+    }//oncreate
 
+    override fun onDestroy() {
+        super.onDestroy()
+        httpd.stop();
     }
 
     private fun fillCacheDefaults() {
@@ -298,6 +298,7 @@ class MainActivity : AppCompatActivity() {
                 var appUrl = "local.app" + count + ".nl"
                 Log.d("fill cache; ", appUrl)
                 resources.put(appUrl, WebContent("text/html", stringBuilder.toString().toByteArray()))
+                cacheDirty = true;
                 //resources.put("https://www.app.nl", WebContent("text/html", stringBuilder.toString().toByteArray()))
                 //mywebview!!.loadDataWithBaseURL(null, stringBuilder.toString(), "text/html", "UTF-8", null);
                 count++;
@@ -315,6 +316,7 @@ class MainActivity : AppCompatActivity() {
             var ois = ObjectInputStream(fIn)
             val res = ois.readObject()
             resources.putAll(res as Map<out String, WebContent>)
+            cacheDirty = true;
             Log.d("cache", "Cache loaded....!")
 
         } catch (e: Exception) {
@@ -357,7 +359,7 @@ class MainActivity : AppCompatActivity() {
         var urlConnection: HttpURLConnection? = null
         var webContent: WebContent? = null;
 
-        if (requestURL.endsWith("/favicon.ico")){
+        if (requestURL.endsWith("/favicon.ico")) {
             return null;
         }
         try {
@@ -379,8 +381,12 @@ class MainActivity : AppCompatActivity() {
             buffer.flush()
             val byteArray = buffer.toByteArray()
             webContent = WebContent(contentType, byteArray);
+
+            //only cache urls without questionmarks
+            //so probably parameterized data will not be cached
             if (requestURL.indexOf("?") < 0) {
                 resources.put(requestURL, webContent)
+                cacheDirty = true;
                 Log.d("store: ", requestURL)
                 Log.d("NEW", requestURL)
             }

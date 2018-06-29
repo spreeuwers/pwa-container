@@ -2,31 +2,81 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>polymer 3 use html as template</title>
+        <title>Title</title>
+        <style>
+        .wrapper {
+            display: grid;
+            grid-template-columns: [c1] 1fr [c2] 1fr [c3];
+            grid-template-rows: [r1] 1fr [r2] 1fr [r3] 1fr;
+            height:50vh;
+            background-color: red;
+        }
+
+        .wrapper > div {
+            border: 2px solid lightblue;
+            border-radius: 5%;
+            background-color: navy;
+            padding: 1em;
+            color: white;
+        }
+
+        .box1 {
+            grid-column-start: c1;
+            grid-column-end: c2;
+            grid-row-start: r1;
+            grid-row-end: r2;
+        }
+
+        .box2 {
+            grid-column-start: c2;
+            grid-column-end: c3;
+            grid-row-start: r1;
+            grid-row-end: r2;
+        }
+
+        .box3 {
+            grid-column-start: c1;
+            grid-row-start: r2;
+        }
+
+        .box4 {
+            grid-column-start: c2;
+            grid-column-end: c3;
+            grid-row-start: r2;
+        }
+        .box5 {
+            grid-column-start: c1;
+            grid-row-start: r3;
+        }
+
+        .box6 {
+            grid-column-start: c2;
+            grid-column-end: c3;
+            grid-row-start: r3;
+        }
+    </style>
 
     </head>
     <body>
-        <script type="module">
+        <div class="wrapper">
+            <div class="box1">One</div>
+            <div class="box2">Two</div>
+            <div class="box3">Three</div>
+            <div class="box4">Four</div>
+            <div class="box5">Five</div>
+            <div class="box6"></div>
+        </div>
+        <button onclick="document.querySelector('#demo-modal').show()">press me!</button>
+        <dialog id="demo-modal" style="position: absolute;top:calc(50vh - 100px)">
+            <h3 class="modal-header">A native modal dialog box</h3>
 
-            import {Element as PolymerElement} from 'https://cdn.rawgit.com/Polymer/polymer/3.0-preview/polymer-element.js';
-
-            export class MyApp extends PolymerElement {
-
-                // Define a string template instead of a `<template>` element.
-                static get template() {
-                   return '<h2>ELEMENT</h2>';
-                }
-
-                constructor() {
-                    super();
-                    this.name = '3.0 preview';
-                }
-            }
-            customElements.define('my-app', MyApp);
-
-        </script>
-        <h1>APP 2</h1>
-        <my-app></my-app>
+            <div class="modal-body">
+                <p>Finally, HTML has a native dialog box element! This is fantastic.</p>
+                <p>And a polyfill makes this usable today.</p>
+            </div>
+            <footer class="modal-footer">
+                <button id="close" type="button" onclick="document.querySelector('#demo-modal').close()">close</button>
+            </footer>
+        </dialog>
     </body>
-
 </html>
