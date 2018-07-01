@@ -176,6 +176,10 @@ class MainActivity : AppCompatActivity() {
                 var mimetype = "text/html";
                 var webContent = getWebContent(requestURL);
                 var loadedUrl  = request.url.toString()
+                val ZIP_MIMETYPE = "application/zip"
+                if (loadedUrl.endsWith(".zip")){
+                    mimetype = ZIP_MIMETYPE;
+                }
                 Log.d("retrieve: ", requestURL)
                 if (webContent != null) {
                     Log.d("retrieved from cache: ", requestURL)
@@ -188,6 +192,7 @@ class MainActivity : AppCompatActivity() {
                     if (webContent != null) {
                         Log.d("downloaded: ", requestURL)
                         data = ByteArrayInputStream(webContent.content)
+                        mimetype = webContent.contentType
                         //webResResp = WebResourceResponse(webContent.contentType, "UTF-8", data)
                     }
                     //fallback
@@ -200,7 +205,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                if (mimetype.equals("application/zip")) {
+                if (mimetype.equals(ZIP_MIMETYPE)) {
                     var zis = ZipInputStream(data);
 
                     // we now iterate through all files in the archive testing them
@@ -222,7 +227,7 @@ class MainActivity : AppCompatActivity() {
                                 output.write(buffer, 0, len)
                                 len = zis.read(buffer)
                             }
-                            val data = ByteArrayInputStream(output.toByteArray())
+                            data = ByteArrayInputStream(output.toByteArray())
                             mimetype = "text/html"
                         }
                         entry = zis.nextEntry;
@@ -249,14 +254,14 @@ class MainActivity : AppCompatActivity() {
                         oos!!.close()
                     }
                     Log.d("cache urls: \n", Arrays.toString(resources.keys.toTypedArray()).replace(", ", "\n"))
-                    var html = ""
+                    var res = "bin or js";
                     var key = url.replace(Regex("/$"), "")
-                    if (resources[key] != null) {
-                        html = String(resources[key]!!.content)
+                    if (resources[key] != null && resources[key]!!.contentType == "text/html" ) {
+                        res = String(resources[key]!!.content)
 
                     }
 
-                    Log.d("loaded html: ", url + ": " + html)
+                    Log.d("loaded resource: ", url + ": " + res)
                 }
                 val downloadUpdate = cacheDirty;
                 cacheDirty = false;
