@@ -24,6 +24,7 @@ import starling.org.pwa_container.JavaScriptInterface.Companion.cacheDirty
 import java.io.*
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.charset.Charset
 import java.util.*
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -204,6 +205,33 @@ class MainActivity : AppCompatActivity() {
 
                     }
                 }
+                //releative to zip file urls hava contentType of zip file in cache
+                if (resources[mimetype] != null) {
+                    data = ByteArrayInputStream(resources[mimetype]!!.content)
+                    var zis = ZipInputStream(data);
+                    val buffer = ByteArray(2048)
+                    var output = ByteArrayOutputStream();
+                    // now copy out of the zip archive until all bytes are copied
+                    var entry = zis.nextEntry;
+
+                    while (entry  != null) {
+                        val name = entry.getName()
+                        Log.d(" file:  ", entry.getName());
+                        if (requestURL.endsWith( "/" + entry)) {
+                          var len = zis.read(buffer)
+                          while (len > 0) {
+                            output.write(buffer, 0, len)
+                            len = zis.read(buffer)
+                          }
+                        }
+                        zis.closeEntry()
+                        entry = zis.nextEntry;
+                    }
+                    zis.close()
+                    data = ByteArrayInputStream(output.toByteArray())
+                    mimetype = extractMimeTypeFromUrl(requestURL)
+
+                }
 
                 if (mimetype.equals(ZIP_MIMETYPE)) {
                     var zis = ZipInputStream(data);
@@ -212,6 +240,7 @@ class MainActivity : AppCompatActivity() {
                     // again the predicate filter that we passed in. Only items that
                     // match the filter are expanded.
                     var entry = zis.nextEntry;
+                    var path = ""
                     while (entry  != null) {
                         val name = entry.getName()
                         Log.d(" file:  ", entry.getName());
@@ -230,8 +259,17 @@ class MainActivity : AppCompatActivity() {
                             data = ByteArrayInputStream(output.toByteArray())
                             mimetype = "text/html"
                         }
+                        if (entry.isDirectory){
+                            path += entry.name
+                        } else {
+                            val relUrl = requestURL.replaceAfterLast("/", "" + entry)
+                            val wc = WebContent(requestURL, "".toByteArray(Charset.defaultCharset()))
+                            resources.put(relUrl, wc)
+                        }
+                        zis.closeEntry()
                         entry = zis.nextEntry;
                     }
+                    zis.close()
                 }
                 webResResp = WebResourceResponse(mimetype, "UTF-8", data)
                 Log.d("returning response for: ", loadedUrl)
@@ -279,6 +317,27 @@ class MainActivity : AppCompatActivity() {
 
         httpd.start();
     }//oncreate
+
+    private fun extractMimeTypeFromUrl(requestURL: String): String {
+        var result = ""
+        if (requestURL.endsWith(".html")) {
+            result = "text/html"
+        }
+
+        if (requestURL.endsWith(".js")) {
+            result = "text/javascript"
+        }
+        if (requestURL.endsWith("png")) {
+            result = "image/png"
+        }
+        if (requestURL.endsWith("gif")) {
+            result = "image/png"
+        }
+        if (requestURL.endsWith("json")) {
+            result = "application/json"
+        }
+        return result
+    }
 
     override fun onDestroy() {
         super.onDestroy()
