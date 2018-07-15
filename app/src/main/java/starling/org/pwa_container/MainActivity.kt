@@ -26,11 +26,12 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.Charset
 import java.util.*
+import java.util.Map.Entry
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
 
-internal class WebContent(var contentType: String, var content: ByteArray) : Serializable
+internal class WebContent(var contentType: String, var content: ByteArray, var lastModified:String) : Serializable
 
 class MainActivity : AppCompatActivity() {
 
@@ -81,7 +82,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             var wc = getWebContent("" + urlbox.text);
             if (wc != null) {
-                mywebview!!.loadDataWithBaseURL(null, String(wc!!.content), "text/html", "UTF-8", null);
+                mywebview!!.loadDataWithBaseURL(null, String(wc.content), "text/html", "UTF-8", null);
             }
         }
 
@@ -94,6 +95,7 @@ class MainActivity : AppCompatActivity() {
     private val myKeyListener = View.OnKeyListener { v, keyCode, event ->
 
         //If the event is a key-down event on the "enter" button
+        Log.d("v: ", ""+ v)
         if ((event.getAction() == KeyEvent.ACTION_DOWN) &&
                 (keyCode == KeyEvent.KEYCODE_ENTER)) {
             mywebview!!.loadUrl("" + urlbox.text);
@@ -129,7 +131,7 @@ class MainActivity : AppCompatActivity() {
         webSettings!!.cacheMode = WebSettings.LOAD_NO_CACHE
         webSettings!!.setAppCacheEnabled(false)
 
-        resources.put("https://www.demo.nl", WebContent("text/html", DEMO_HTML.toByteArray()))
+        resources.put("https://www.demo.nl", WebContent("text/html", DEMO_HTML.toByteArray(),"" + Date()))
         urlbox.setText("https://www.demo.nl")
 
 
@@ -189,7 +191,7 @@ class MainActivity : AppCompatActivity() {
 
                 } else {
                     Log.d("connecting to : ", request.url.toString())
-                    webContent = getUrlContent(requestURL)
+                    webContent = getUrlContent(requestURL, webContent)
                     if (webContent != null) {
                         Log.d("downloaded: ", requestURL)
                         data = ByteArrayInputStream(webContent.content)
@@ -216,7 +218,7 @@ class MainActivity : AppCompatActivity() {
 
                     while (entry  != null) {
                         val name = entry.getName()
-                        Log.d(" file:  ", entry.getName());
+                        Log.d(" file:  ", name);
                         if (requestURL.endsWith( "/" + entry)) {
                           var len = zis.read(buffer)
                           while (len > 0) {
@@ -263,7 +265,7 @@ class MainActivity : AppCompatActivity() {
                             path += entry.name
                         } else {
                             val relUrl = requestURL.replaceAfterLast("/", "" + entry)
-                            val wc = WebContent(requestURL, "".toByteArray(Charset.defaultCharset()))
+                            val wc = WebContent(requestURL, "".toByteArray(Charset.defaultCharset()),""+ Date())
                             resources.put(relUrl, wc)
                         }
                         zis.closeEntry()
@@ -282,14 +284,14 @@ class MainActivity : AppCompatActivity() {
                 var oos: ObjectOutputStream? = null
                 try {
                     val fOut = openFileOutput("resources.bin", Context.MODE_PRIVATE)
-                    var oos = ObjectOutputStream(fOut)
+                    oos = ObjectOutputStream(fOut)
                     oos.writeObject(resources)
                     Log.d("cache", "Cache stored!")
                 } catch (e: Exception) {
                     Log.e("error saving resources : ", "", e)
                 } finally {
                     if (oos !== null) {
-                        oos!!.close()
+                        oos.close()
                     }
                     Log.d("cache urls: \n", Arrays.toString(resources.keys.toTypedArray()).replace(", ", "\n"))
                     var res = "bin or js";
@@ -361,7 +363,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 var appUrl = "local.app" + count + ".nl"
                 Log.d("fill cache; ", appUrl)
-                resources.put(appUrl, WebContent("text/html", stringBuilder.toString().toByteArray()))
+                resources.put(appUrl, WebContent("text/html", stringBuilder.toString().toByteArray(),"" + Date()))
                 cacheDirty = true;
                 //resources.put("https://www.app.nl", WebContent("text/html", stringBuilder.toString().toByteArray()))
                 //mywebview!!.loadDataWithBaseURL(null, stringBuilder.toString(), "text/html", "UTF-8", null);
@@ -374,10 +376,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadCachedResources() {
-        var ois: ObjectOutputStream? = null
+        var ois: ObjectInputStream? = null
         try {
             val fIn = openFileInput("resources.bin")
-            var ois = ObjectInputStream(fIn)
+            ois = ObjectInputStream(fIn)
             val res = ois.readObject()
             resources.putAll(res as Map<out String, WebContent>)
             cacheDirty = true;
@@ -387,7 +389,7 @@ class MainActivity : AppCompatActivity() {
             Log.e("error loading resources : ", "", e)
         } finally {
             if (ois !== null) {
-                ois!!.close()
+                ois.close()
             }
         }
     }
@@ -402,24 +404,28 @@ class MainActivity : AppCompatActivity() {
         }
         if (wc != null || visitedUrls.contains(requestURL)) {
             Log.d("cached: ", requestURL)
-            return wc
+            //whenever a zip file is requested check if there is a new version
+            if (!requestURL.toLowerCase().endsWith(".zip")){
+                return wc
+            }
         }
         Log.d("request", requestURL)
         if (requestURL.indexOf("?") < 0) {
             visitedUrls.add(requestURL);
         }
-
+        //skip request for default localy stored apps
         if (requestURL.startsWith("http")) {
             Thread(Runnable {
                 Log.d("thread for: ", requestURL)
-                getUrlContent(requestURL)
+                getUrlContent(requestURL, wc)
             }).start()
         }
         return wc
     }
 
-    private fun getUrlContent(requestURL: String): WebContent? {
-        var contentType: String = ""
+
+    private fun getUrlContent(requestURL: String, wc:WebContent?): WebContent? {
+        var contentType = ""
         var urlConnection: HttpURLConnection? = null
         var webContent: WebContent? = null;
 
@@ -429,22 +435,39 @@ class MainActivity : AppCompatActivity() {
         try {
             var url = URL(requestURL)
             urlConnection = url.openConnection() as HttpURLConnection
-            val bin = BufferedInputStream(urlConnection.inputStream)
             contentType = "" + urlConnection.contentType
             Log.d("Content-type: ", contentType)
             contentType = contentType.split(";".toRegex()).dropLastWhile({ it.isEmpty() }).toTypedArray()[0]
-            val buffer = ByteArrayOutputStream()
-            var nRead: Int
-            val data = ByteArray(1024 * 8);
-            nRead = bin.read(data, 0, data.size);
-            while (nRead != -1) {
-                buffer.write(data, 0, nRead)
-                Log.d("reading....", requestURL)
-                nRead = bin.read(data, 0, data.size);
+
+            var lastModified = "";
+            var headers = urlConnection.headerFields;
+
+            if (wc !=null) {
+                Log.d("Cache hit, sending head request for: ", requestURL)
+                urlConnection.setRequestMethod("HEAD");
+                urlConnection.getInputStream().close();
+                headers = urlConnection.headerFields;
+
+                //headers.entries.forEach { e-> Log.d(""+e.key, ""+ e.value) }
+                lastModified = "" + headers.getValue("last-Modified");
+                Log.d("head last-Modified: "+ lastModified, "cache lastModified: " + wc?.lastModified)
+                if (lastModified.equals(wc?.lastModified)) {
+                    Log.d("retreived head lastModified not changed, returning cached value for: ", requestURL)
+                    return wc;
+
+                }
+
             }
-            buffer.flush()
-            val byteArray = buffer.toByteArray()
-            webContent = WebContent(contentType, byteArray);
+            //var headBytes = readStreamBytes(urlConnection.inputStream, requestURL)
+            //var headers = headBytes.toString(Charset.defaultCharset())
+            urlConnection = url.openConnection() as HttpURLConnection
+            urlConnection.setRequestMethod("GET");
+
+
+            val byteArray = readStreamBytes(urlConnection.inputStream, requestURL)
+            headers = urlConnection.headerFields;
+            lastModified = "" + headers.getValue("last-Modified");
+            webContent = WebContent(contentType, byteArray, ""+ lastModified);
 
             //only cache urls without questionmarks
             //so probably parameterized data will not be cached
@@ -455,7 +478,9 @@ class MainActivity : AppCompatActivity() {
                 Log.d("NEW", requestURL)
             }
 
-            //MainActivity.instance.mywebview.clearCache(true);
+            if (wc!=null){
+                Log.d("retreived payload lastModified changed, returning new webContent value for: ", requestURL)
+            }
 
 
         } catch (e: Exception) {
@@ -468,6 +493,25 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return webContent;
+    }
+
+    private fun readStreamBytes(inputStream: InputStream,  requestURL: String):ByteArray {
+
+        val bin = BufferedInputStream(inputStream)
+
+
+        val buffer = ByteArrayOutputStream()
+        var nRead: Int
+        val data = ByteArray(1024 * 8);
+        nRead = bin.read(data, 0, data.size);
+        while (nRead != -1) {
+            buffer.write(data, 0, nRead)
+            Log.d("reading....", requestURL)
+            nRead = bin.read(data, 0, data.size);
+        }
+        buffer.flush()
+        val byteArray = buffer.toByteArray()
+        return byteArray
     }
 
     val lastKnownLocation: String
