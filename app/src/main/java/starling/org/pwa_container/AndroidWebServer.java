@@ -17,7 +17,7 @@ public class AndroidWebServer extends NanoHTTPD {
 
     @Override
     public Response serve(IHTTPSession session) {
-        String msg = "<html><body><h1>Hello server</h1>\n";
+        String msg = "<html><body><h1>Hello from android server</h1>\n";
         Map<String, String> parms = session.getParms();
         if (parms.get("username") == null) {
             msg += "<form action='?' method='get'>\n";

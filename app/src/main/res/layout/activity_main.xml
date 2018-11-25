@@ -51,9 +51,14 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <WebView
-            android:id="@+id/webview"
+            android:id="@+id/webview1"
             android:layout_width="364dp"
             android:layout_height="match_parent" />
+
+        <!--<WebView-->
+            <!--android:id="@+id/webview2"-->
+            <!--android:layout_width="364dp"-->
+            <!--android:layout_height="match_parent" />-->
     </FrameLayout>
 
 </android.support.constraint.ConstraintLayout>

@@ -22,12 +22,9 @@ import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_main.*
 import starling.org.pwa_container.JavaScriptInterface.Companion.cacheDirty
 import java.io.*
-import java.net.HttpURLConnection
-import java.net.URL
+import java.net.*
 import java.nio.charset.Charset
 import java.util.*
-import java.util.Map.Entry
-import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
 
@@ -36,26 +33,36 @@ internal class WebContent(var contentType: String, var content: ByteArray, var l
 class MainActivity : AppCompatActivity() {
 
 
-    private var mywebview: WebView? = null
+    private var mywebview1: WebView? = null
+    private var mywebview2: WebView? = null
+
     private var webSettings: WebSettings? = null
     private var frameLayout: FrameLayout? = null
     private var menuItem: MenuItem? = null;
     private val resources = HashMap<String, WebContent>()
     private val visitedUrls = HashSet<String>()
     private var mLocationManager: LocationManager? = null
-    private val httpd = AndroidWebServer("localhost", 8080);
+    private val httpd = AndroidWebServer( 8080);
+
 
 
     companion object {
         private val LOCATION_REQUEST_CODE = 101
-        val LOADING_HTML = "<html><body><h1>loading ....</h1></body>" +
+
+        val LOADING_HTML = "<html><body><h1>loading ....</h1>\n" +
+                "<h3>address: {{hostname}}</h3>\n"  +
                 "<script>" +
-                "window.setTimeout(()=>window.location.reload(),5000);" +
-                "</script>" +
+                "  window.setTimeout(()=>window.location.reload(),5000);\n" +
+                "</script>"+
+                "</body>" +
                 "</html>";
         val DEMO_HTML = "<html><body><h1>APP 1</h1></body>" +
                 "<a href=\"javascript:alert(webview.getLastKnownLocation())\">location</a><br>" +
-                "<a href=\"javascript:alert(webview.sayHi('eddy'))\">say hi</a>" +
+                "<a href=\"javascript:alert(webview.sayHi('eddy'))\">say hi</a><br>" +
+                "<a href=\"127.0.0.1:8080/\">test nano httpd</a><br>" +
+                "href: <script>document.write(window.location.href);</script><br>" +
+                "host: <script>document.write(window.location.hostname);</script><br>" +
+                "address: {{hostname}}"  +
                 "</html>";
     }
 
@@ -78,11 +85,11 @@ class MainActivity : AppCompatActivity() {
         menuItem = item;
         Log.d("loadUrl", "" + urlbox.text);
         if (urlbox.text.startsWith("http")) {
-            mywebview!!.loadUrl("" + urlbox.text);
+            mywebview1!!.loadUrl("" + urlbox.text);
         } else {
             var wc = getWebContent("" + urlbox.text);
             if (wc != null) {
-                mywebview!!.loadDataWithBaseURL(null, String(wc.content), "text/html", "UTF-8", null);
+                mywebview1!!.loadDataWithBaseURL(null, String(wc.content), "text/html", "UTF-8", null);
             }
         }
 
@@ -98,7 +105,7 @@ class MainActivity : AppCompatActivity() {
         Log.d("v: ", ""+ v)
         if ((event.getAction() == KeyEvent.ACTION_DOWN) &&
                 (keyCode == KeyEvent.KEYCODE_ENTER)) {
-            mywebview!!.loadUrl("" + urlbox.text);
+            mywebview1!!.loadUrl("" + urlbox.text);
             //var item = findViewById<>(navigation.selectedItemId)
             if (menuItem != null) {
                 menuItem!!.setTitle("" + urlbox.text);
@@ -121,15 +128,17 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_main)
         frameLayout = findViewById(R.id.frame) as FrameLayout
-        mywebview = findViewById(R.id.webview) as WebView;
-
+        mywebview1 = findViewById(R.id.webview1) as WebView;
+        //mywebview2 = findViewById(R.id.webview2) as WebView;
+        //mywebview2!!.visibility= 0;
         urlbox.setOnKeyListener(myKeyListener);
         urlbox.clearFocus()
-        webSettings = mywebview!!.settings
+        webSettings = mywebview1!!.settings
         webSettings!!.javaScriptEnabled = true
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
         webSettings!!.cacheMode = WebSettings.LOAD_NO_CACHE
         webSettings!!.setAppCacheEnabled(false)
+
 
         resources.put("https://www.demo.nl", WebContent("text/html", DEMO_HTML.toByteArray(),"" + Date()))
         urlbox.setText("https://www.demo.nl")
@@ -145,7 +154,7 @@ class MainActivity : AppCompatActivity() {
 
 
 
-        mywebview!!.setWebChromeClient(object : WebChromeClient() {
+        mywebview1!!.setWebChromeClient(object : WebChromeClient() {
             override fun onJsAlert(view: WebView, url: String, message: String, result: JsResult): Boolean {
                 return super.onJsAlert(view, url, message, result)
             }
@@ -159,7 +168,7 @@ class MainActivity : AppCompatActivity() {
 
 
 
-        mywebview!!.setWebViewClient(object : WebViewClient() {
+        mywebview1!!.setWebViewClient(object : WebViewClient() {
 
             //protected UrlCache urlCache = null;
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -171,7 +180,7 @@ class MainActivity : AppCompatActivity() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse {
                 //mywebview.clearCache(true);
                 val requestURL = request.url.toString()
-                val offLinePage = DEMO_HTML;//LOADING_HTML;
+                val offLinePage = LOADING_HTML;
                 var webResResp: WebResourceResponse? = null;
                 var bytes = ByteArray(0)
                 Log.d("request", requestURL)
@@ -180,6 +189,7 @@ class MainActivity : AppCompatActivity() {
                 var webContent = getWebContent(requestURL);
                 var loadedUrl  = request.url.toString()
                 val ZIP_MIMETYPE = "application/zip"
+                val localhostName = "" + Arrays.toString(java.net.InetAddress.getLocalHost().address)
                 if (loadedUrl.endsWith(".zip")){
                     mimetype = ZIP_MIMETYPE;
                 }
@@ -203,6 +213,7 @@ class MainActivity : AppCompatActivity() {
                         val acceptHeader = request.requestHeaders["Accept"];
                         mimetype = acceptHeader!!.split(",")[0];
                         Log.e("offline page for location", request.url.toString())
+                        val offLinePage = offLinePage.replace("{{hostname}}",localhostName)
                         data = ByteArrayInputStream(offLinePage.toByteArray())
 
                     }
@@ -273,6 +284,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     zis.close()
                 }
+
                 webResResp = WebResourceResponse(mimetype, "UTF-8", data)
                 Log.d("returning response for: ", loadedUrl)
                 return webResResp;
@@ -314,8 +326,8 @@ class MainActivity : AppCompatActivity() {
 
             }
         })
-        webview.loadUrl("https://www.demo.nl")
-        mywebview!!.addJavascriptInterface(JavaScriptInterface(this), "webview")
+        webview1.loadUrl("https://www.demo.nl")
+        mywebview1!!.addJavascriptInterface(JavaScriptInterface(this), "webview")
 
         httpd.start();
     }//oncreate
