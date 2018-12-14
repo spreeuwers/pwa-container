@@ -23,7 +23,6 @@ import kotlinx.android.synthetic.main.activity_main.*
 import starling.org.pwa_container.JavaScriptInterface.Companion.cacheDirty
 import java.io.*
 import java.net.*
-import java.nio.charset.Charset
 import java.util.*
 import java.util.zip.ZipInputStream
 
@@ -59,7 +58,7 @@ class MainActivity : AppCompatActivity() {
         val DEMO_HTML = "<html><body><h1>APP 1</h1></body>" +
                 "<a href=\"javascript:alert(webview.getLastKnownLocation())\">location</a><br>" +
                 "<a href=\"javascript:alert(webview.sayHi('eddy'))\">say hi</a><br>" +
-                "<a href=\"127.0.0.1:8080/\">test nano httpd</a><br>" +
+                "<a href=\"10.0.2.2:8080/\">test nano httpd</a><br>" +
                 "href: <script>document.write(window.location.href);</script><br>" +
                 "host: <script>document.write(window.location.hostname);</script><br>" +
                 "address: {{hostname}}"  +
@@ -84,12 +83,15 @@ class MainActivity : AppCompatActivity() {
         urlbox.setText(item.title)
         menuItem = item;
         Log.d("loadUrl", "" + urlbox.text);
-        if (urlbox.text.startsWith("http")) {
+        if (urlbox.text.startsWith("http") || urlbox.text.startsWith("file://")) {
             mywebview1!!.loadUrl("" + urlbox.text);
         } else {
             var wc = getWebContent("" + urlbox.text);
             if (wc != null) {
                 mywebview1!!.loadDataWithBaseURL(null, String(wc.content), "text/html", "UTF-8", null);
+            } else {
+                Log.d("connecting to : ", ""+urlbox.text)
+                mywebview1!!.loadDataWithBaseURL(null, LOADING_HTML, "text/html", "UTF-8", null);
             }
         }
 
@@ -144,7 +146,7 @@ class MainActivity : AppCompatActivity() {
         urlbox.setText("https://www.demo.nl")
 
 
-        loadCachedResources()
+        //loadCachedResources()
 
         fillCacheDefaults()
 
@@ -180,6 +182,7 @@ class MainActivity : AppCompatActivity() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse {
                 //mywebview.clearCache(true);
                 val requestURL = request.url.toString()
+                Log.d("retrieve: ", requestURL)
                 val offLinePage = LOADING_HTML;
                 var webResResp: WebResourceResponse? = null;
                 var bytes = ByteArray(0)
@@ -190,100 +193,32 @@ class MainActivity : AppCompatActivity() {
                 var loadedUrl  = request.url.toString()
                 val ZIP_MIMETYPE = "application/zip"
                 val localhostName = "" + Arrays.toString(java.net.InetAddress.getLocalHost().address)
-                if (loadedUrl.endsWith(".zip")){
-                    mimetype = ZIP_MIMETYPE;
-                }
-                Log.d("retrieve: ", requestURL)
+
+
                 if (webContent != null) {
                     Log.d("retrieved from cache: ", requestURL)
                     data = ByteArrayInputStream(webContent.content)
                     mimetype = webContent.contentType;
 
+                    //releative to zip file urls hava contentType of zip file in cache
+                    if (resources[mimetype] != null) {
+                        val pair = getZipResource(data, mimetype, requestURL)
+                        data = pair.first
+                        mimetype = pair.second
+
+                    }
                 } else {
                     Log.d("connecting to : ", request.url.toString())
-                    webContent = getUrlContent(requestURL, webContent)
-                    if (webContent != null) {
-                        Log.d("downloaded: ", requestURL)
-                        data = ByteArrayInputStream(webContent.content)
-                        mimetype = webContent.contentType
-                        //webResResp = WebResourceResponse(webContent.contentType, "UTF-8", data)
-                    }
-                    //fallback
-                    if (webResResp == null) {
-                        val acceptHeader = request.requestHeaders["Accept"];
-                        mimetype = acceptHeader!!.split(",")[0];
-                        Log.e("offline page for location", request.url.toString())
-                        val offLinePage = offLinePage.replace("{{hostname}}",localhostName)
-                        data = ByteArrayInputStream(offLinePage.toByteArray())
-
-                    }
-                }
-                //releative to zip file urls hava contentType of zip file in cache
-                if (resources[mimetype] != null) {
-                    data = ByteArrayInputStream(resources[mimetype]!!.content)
-                    var zis = ZipInputStream(data);
-                    val buffer = ByteArray(2048)
-                    var output = ByteArrayOutputStream();
-                    // now copy out of the zip archive until all bytes are copied
-                    var entry = zis.nextEntry;
-
-                    while (entry  != null) {
-                        val name = entry.getName()
-                        Log.d(" file:  ", name);
-                        if (requestURL.endsWith( "/" + entry)) {
-                          var len = zis.read(buffer)
-                          while (len > 0) {
-                            output.write(buffer, 0, len)
-                            len = zis.read(buffer)
-                          }
-                        }
-                        zis.closeEntry()
-                        entry = zis.nextEntry;
-                    }
-                    zis.close()
-                    data = ByteArrayInputStream(output.toByteArray())
-                    mimetype = extractMimeTypeFromUrl(requestURL)
+                    val acceptHeader = request.requestHeaders["Accept"];
+                    mimetype = acceptHeader!!.split(",")[0];
+                    Log.e("offline page for location", request.url.toString())
+                    val offLinePage = offLinePage.replace("{{hostname}}",localhostName)
+                    data = ByteArrayInputStream(offLinePage.toByteArray())
 
                 }
 
-                if (mimetype.equals(ZIP_MIMETYPE)) {
-                    var zis = ZipInputStream(data);
 
-                    // we now iterate through all files in the archive testing them
-                    // again the predicate filter that we passed in. Only items that
-                    // match the filter are expanded.
-                    var entry = zis.nextEntry;
-                    var path = ""
-                    while (entry  != null) {
-                        val name = entry.getName()
-                        Log.d(" file:  ", entry.getName());
-                        if (name.endsWith(".html")){
-                            loadedUrl = name;
-                            val buffer = ByteArray(2048)
 
-                            // now copy out of the zip archive until all bytes are copied
-
-                            var output = ByteArrayOutputStream();
-                            var len = zis.read(buffer)
-                            while (len > 0) {
-                                output.write(buffer, 0, len)
-                                len = zis.read(buffer)
-                            }
-                            data = ByteArrayInputStream(output.toByteArray())
-                            mimetype = "text/html"
-                        }
-                        if (entry.isDirectory){
-                            path += entry.name
-                        } else {
-                            val relUrl = requestURL.replaceAfterLast("/", "" + entry)
-                            val wc = WebContent(requestURL, "".toByteArray(Charset.defaultCharset()),""+ Date())
-                            resources.put(relUrl, wc)
-                        }
-                        zis.closeEntry()
-                        entry = zis.nextEntry;
-                    }
-                    zis.close()
-                }
 
                 webResResp = WebResourceResponse(mimetype, "UTF-8", data)
                 Log.d("returning response for: ", loadedUrl)
@@ -291,38 +226,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onPageFinished(view: WebView, url: String) {
-                Log.d("onPageFinished", url)
-
-                var oos: ObjectOutputStream? = null
-                try {
-                    val fOut = openFileOutput("resources.bin", Context.MODE_PRIVATE)
-                    oos = ObjectOutputStream(fOut)
-                    oos.writeObject(resources)
-                    Log.d("cache", "Cache stored!")
-                } catch (e: Exception) {
-                    Log.e("error saving resources : ", "", e)
-                } finally {
-                    if (oos !== null) {
-                        oos.close()
-                    }
-                    Log.d("cache urls: \n", Arrays.toString(resources.keys.toTypedArray()).replace(", ", "\n"))
-                    var res = "bin or js";
-                    var key = url.replace(Regex("/$"), "")
-                    if (resources[key] != null && resources[key]!!.contentType == "text/html" ) {
-                        res = String(resources[key]!!.content)
-
-                    }
-
-                    Log.d("loaded resource: ", url + ": " + res)
-                }
-                val downloadUpdate = cacheDirty;
-                cacheDirty = false;
-                if (downloadUpdate) {
-                    val snackbar = Snackbar
-                            .make(frameLayout!!, "Website has been updated", Snackbar.LENGTH_LONG)
-
-                    snackbar.show()
-                }
+                finishPageLoad(url)
 
             }
         })
@@ -331,6 +235,121 @@ class MainActivity : AppCompatActivity() {
 
         httpd.start();
     }//oncreate
+
+    private fun finishPageLoad(url: String) {
+        Log.d("onPageFinished", url)
+
+        var oos: ObjectOutputStream? = null
+        try {
+            val fOut = openFileOutput("resources.bin", Context.MODE_PRIVATE)
+            oos = ObjectOutputStream(fOut)
+            oos.writeObject(resources)
+            Log.d("cache", "Cache stored!")
+        } catch (e: Exception) {
+            Log.e("error saving resources : ", "", e)
+        } finally {
+            if (oos !== null) {
+                oos.close()
+            }
+            Log.d("cache urls: \n", Arrays.toString(resources.keys.toTypedArray()).replace(", ", "\n"))
+            var res = "bin or js";
+            var key = url.replace(Regex("/$"), "")
+            if (resources[key] != null && resources[key]!!.contentType == "text/html") {
+                res = String(resources[key]!!.content)
+
+            }
+
+            Log.d("loaded resource: ", url + ": " + res)
+        }
+        val downloadUpdate = cacheDirty;
+        cacheDirty = false;
+        if (downloadUpdate) {
+            val snackbar = Snackbar
+                    .make(frameLayout!!, "Website has been updated", Snackbar.LENGTH_LONG)
+
+            snackbar.show()
+        }
+    }
+
+    private fun getZipResource(data: ByteArrayInputStream, mimetype: String, requestURL: String): Pair<ByteArrayInputStream, String> {
+        var data1 = data
+        var mimetype1 = mimetype
+        data1 = ByteArrayInputStream(resources[mimetype1]!!.content)
+        var zis = ZipInputStream(data1);
+        val buffer = ByteArray(2048)
+        var output = ByteArrayOutputStream();
+        // now copy out of the zip archive until all bytes are copied
+        var entry = zis.nextEntry;
+
+        while (entry != null) {
+            val name = entry.getName()
+            Log.d(" file:  ", name);
+            if (requestURL.endsWith("/" + entry)) {
+                var len = zis.read(buffer)
+                while (len > 0) {
+                    output.write(buffer, 0, len)
+                    len = zis.read(buffer)
+                }
+            }
+            zis.closeEntry()
+            entry = zis.nextEntry;
+        }
+        zis.close()
+        data1 = ByteArrayInputStream(output.toByteArray())
+        mimetype1 = extractMimeTypeFromUrl(requestURL)
+        return Pair(data1, mimetype1)
+    }
+
+    private fun loadZippedSite(wc: WebContent?,requestURL: String ): WebContent {
+
+
+        var mimetype = wc!!.contentType
+        var data  = ByteArrayInputStream(wc!!.content)
+        var zis = ZipInputStream(data);
+        var wcMain: WebContent = wc;
+        // we now iterate through all files in the archive
+        var entry = zis.nextEntry;
+        var mainPage = ""
+        while (entry != null) {
+            val name = entry.getName()
+            Log.d(" file:  ", entry.getName());
+            //find the first html file
+            if (name.endsWith(".html") && mainPage.equals("")) {
+                mainPage = entry.name
+                val buffer = ByteArray(2048)
+                var output = ByteArrayOutputStream();
+                var len = zis.read(buffer)
+                while (len > 0) {
+                    output.write(buffer, 0, len)
+                    len = zis.read(buffer)
+                }
+
+                wcMain = WebContent("text/html", output.toByteArray(), "" + Date())
+                Log.d("wcMain",String(wcMain.content));
+            }
+            try{
+                if (!entry.isDirectory){
+                  var path = requestURL
+                  if(!path.endsWith("/")){
+                   path+="/"
+                  }
+                  path += entry.name;
+                  resources[path] = WebContent(requestURL, "".toByteArray(), "" + Date())
+                }
+                zis.closeEntry()
+                entry = zis.nextEntry;
+            } catch(e:Exception) {
+                Log.d("error zis.closeEntry() ", requestURL)
+                break
+            }
+
+
+        }
+        zis.close()
+        Log.d("wcMain",String(wcMain.content));
+        return wcMain;
+        //return Triple(data1, loadedUrl1, mimetype1)
+    }
 
     private fun extractMimeTypeFromUrl(requestURL: String): String {
         var result = ""
@@ -360,7 +379,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun fillCacheDefaults() {
         //add a resource html files
-        val appIds = intArrayOf(R.raw.app1, R.raw.app2, R.raw.app3)
+        val appIds = intArrayOf(R.raw.app1, R.raw.app2)
         var count = 1;
         for (appId in appIds) {
             try {
@@ -383,7 +402,14 @@ class MainActivity : AppCompatActivity() {
             } catch (e: IOException) {
                 e.printStackTrace();
             }
+            try {
+                var inputStream = getResources().openRawResource(R.raw.game);
+                val byteArray = readStreamBytes(inputStream, "");
+                resources.put("file://game.zip/", WebContent("application/zip", byteArray,"" + Date()))
 
+            }catch (e: IOException) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -414,12 +440,10 @@ class MainActivity : AppCompatActivity() {
         if (wc == null) {
             wc = resources[key]
         }
-        if (wc != null || visitedUrls.contains(requestURL)) {
+        if (wc != null) {
             Log.d("cached: ", requestURL)
-            //whenever a zip file is requested check if there is a new version
-            if (!requestURL.toLowerCase().endsWith(".zip")){
-                return wc
-            }
+            wc = loadZippedSite(wc, requestURL)
+
         }
         Log.d("request", requestURL)
         if (requestURL.indexOf("?") < 0) {
@@ -437,6 +461,9 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun getUrlContent(requestURL: String, wc:WebContent?): WebContent? {
+        //var policy: ThreadPolicy = ThreadPolicy.Builder().permitAll().build();
+        //setThreadPolicy(policy);
+
         var contentType = ""
         var urlConnection: HttpURLConnection? = null
         var webContent: WebContent? = null;
@@ -447,6 +474,7 @@ class MainActivity : AppCompatActivity() {
         try {
             var url = URL(requestURL)
             urlConnection = url.openConnection() as HttpURLConnection
+            urlConnection.connectTimeout = 1
             contentType = "" + urlConnection.contentType
             Log.d("Content-type: ", contentType)
             contentType = contentType.split(";".toRegex()).dropLastWhile({ it.isEmpty() }).toTypedArray()[0]
@@ -477,6 +505,7 @@ class MainActivity : AppCompatActivity() {
 
 
             val byteArray = readStreamBytes(urlConnection.inputStream, requestURL)
+
             headers = urlConnection.headerFields;
             lastModified = "" + headers.getValue("last-Modified");
             webContent = WebContent(contentType, byteArray, ""+ lastModified);

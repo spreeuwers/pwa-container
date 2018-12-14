@@ -2,5 +2,5 @@
     <string name="app_name">pwa-container</string>
     <string name="title_home">local.app1.nl</string>
     <string name="title_dashboard">local.app2.nl</string>
-    <string name="title_notifications">https://www.eddyspreeuwers.nl/game.zip</string>
+    <string name="title_notifications">file://game.zip</string>
  </resources>
