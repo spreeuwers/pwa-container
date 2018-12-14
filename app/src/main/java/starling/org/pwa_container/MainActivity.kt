@@ -146,7 +146,7 @@ class MainActivity : AppCompatActivity() {
         urlbox.setText("https://www.demo.nl")
 
 
-        //loadCachedResources()
+        loadCachedResources()
 
         fillCacheDefaults()
 
