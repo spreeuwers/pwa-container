@@ -1,5 +1,6 @@
 package starling.org.pwa_container
 
+import android.app.Activity
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
@@ -16,6 +17,7 @@ import android.view.KeyEvent
 import android.view.MenuItem
 import android.view.View
 import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
 import android.webkit.*
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -81,6 +83,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
         urlbox.setText(item.title)
+        hideSoftKeyboard(this);
+
         menuItem = item;
         Log.d("loadUrl", "" + urlbox.text);
         if (urlbox.text.startsWith("http") || urlbox.text.startsWith("file://")) {
@@ -122,10 +126,20 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    fun hideSoftKeyboard(activity: Activity?) {
+        if (activity != null) {
+            val inputManager = activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            if (activity.currentFocus != null && inputManager != null) {
+                inputManager.hideSoftInputFromWindow(activity.currentFocus!!.windowToken, 0)
+                inputManager.hideSoftInputFromInputMethod(activity.currentFocus!!.windowToken, 0)
+            }
+        }
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        WebView.setWebContentsDebuggingEnabled(true);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
 
         setContentView(R.layout.activity_main)

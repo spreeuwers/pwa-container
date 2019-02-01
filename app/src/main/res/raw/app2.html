@@ -66,7 +66,18 @@
             <div class="box5">Five</div>
             <div class="box6"></div>
         </div>
-        <button onclick="document.querySelector('#demo-modal').show()">press me!</button>
+        <br>
+        <button onclick="document.querySelector('#demo-modal').show()">show dialog</button><br>
+        <button onclick="fetch('http://localhost/data.json').then(()=>alert('ok'))">http fetch</button>
+        <button onclick="fetch(`data:application/json,{'foo':'bar'}`).then(()=>alert('ok'))">data fetch</button><br>
+
+        <a href="http://localhost/data.json">http link</a>
+        <a href="data:application/json,{'foo':'bar'}">data link</a>
+        <a href="file://game.zip">file protocol link</a><br>
+        <a href="test://game.zip">test protocol link</a><br>
+        <a href="test://game.zip">test protocol link</a><br>
+        <a href="file://index.html">index.html link</a>
+        <br>
         <dialog id="demo-modal" style="position: absolute;top:calc(50vh - 100px)">
             <h3 class="modal-header">A native modal dialog box</h3>
 
